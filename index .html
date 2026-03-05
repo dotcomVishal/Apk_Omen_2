@@ -1,0 +1,1500 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>APK·Omen_2</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600&family=Syne:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            display: ['Syne', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          },
+          colors: {
+            void:    '#07080d',
+            surface: '#0e0f17',
+            panel:   '#13141f',
+            border:  '#1e2030',
+            muted:   '#2a2d42',
+            dim:     '#4a4f6e',
+            ghost:   '#6b7280',
+            soft:    '#9ba3bf',
+            bright:  '#c9d1f0',
+            crit:    { DEFAULT: '#ff3b5c', bg: '#1a0810', border: '#5c0e20', glow: '#ff3b5c33' },
+            high:    { DEFAULT: '#ff7b2c', bg: '#160e05', border: '#5c2e0a', glow: '#ff7b2c33' },
+            med:     { DEFAULT: '#f5c542', bg: '#151100', border: '#5c4800', glow: '#f5c54233' },
+            low:     { DEFAULT: '#3b9eff', bg: '#050f1a', border: '#0a2e5c', glow: '#3b9eff33' },
+            ok:      { DEFAULT: '#22d67a', bg: '#051a0e', border: '#0a5c2e', glow: '#22d67a33' },
+          },
+        }
+      }
+    }
+  </script>
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+
+    body {
+      background-color: #07080d;
+      font-family: 'JetBrains Mono', monospace;
+      color: #c9d1f0;
+      overflow-x: hidden;
+    }
+
+    /* Subtle scanline overlay for the header */
+    .scanlines::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 2px,
+        rgba(0,0,0,0.07) 2px,
+        rgba(0,0,0,0.07) 4px
+      );
+      pointer-events: none;
+      z-index: 1;
+    }
+
+    /* Grid dot background */
+    .dot-grid {
+      background-image: radial-gradient(circle, #1e2030 1px, transparent 1px);
+      background-size: 28px 28px;
+    }
+
+    /* Glowing border pulse on upload zone hover */
+    .upload-zone {
+      background: linear-gradient(135deg, #0e0f17 0%, #0d0e18 100%);
+      border: 1.5px dashed #2a2d42;
+      transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
+    }
+    .upload-zone:hover, .upload-zone.dragover {
+      border-color: #3b9eff;
+      box-shadow: 0 0 0 1px #3b9eff22, 0 0 32px #3b9eff18 inset;
+      background: linear-gradient(135deg, #070c14 0%, #06091a 100%);
+    }
+    .upload-zone.has-file {
+      border-color: #22d67a;
+      box-shadow: 0 0 0 1px #22d67a22, 0 0 32px #22d67a18 inset;
+    }
+
+    /* Severity card left border glow */
+    .card-crit  { border-left: 3px solid #ff3b5c; box-shadow: -4px 0 24px #ff3b5c22; }
+    .card-high  { border-left: 3px solid #ff7b2c; box-shadow: -4px 0 24px #ff7b2c22; }
+    .card-med   { border-left: 3px solid #f5c542; box-shadow: -4px 0 24px #f5c54222; }
+    .card-low   { border-left: 3px solid #3b9eff; box-shadow: -4px 0 24px #3b9eff22; }
+    .card-info  { border-left: 3px solid #6b7280; box-shadow: -4px 0 24px #6b728022; }
+
+    /* Severity badge chips */
+    .badge-crit { background: #1a0810; color: #ff3b5c; border: 1px solid #5c0e20; }
+    .badge-high { background: #160e05; color: #ff7b2c; border: 1px solid #5c2e0a; }
+    .badge-med  { background: #151100; color: #f5c542; border: 1px solid #5c4800; }
+    .badge-low  { background: #050f1a; color: #3b9eff; border: 1px solid #0a2e5c; }
+    .badge-info { background: #0f1017; color: #6b7280; border: 1px solid #2a2d42; }
+
+    /* Scan button gradient */
+    .btn-scan {
+      background: linear-gradient(135deg, #1b3b7a 0%, #0f2455 100%);
+      border: 1px solid #2a4a9a;
+      color: #7ab3ff;
+      transition: all 0.18s;
+      position: relative;
+      overflow: hidden;
+    }
+    .btn-scan::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, #2a5acc22, #3b9eff11);
+      opacity: 0;
+      transition: opacity 0.18s;
+    }
+    .btn-scan:hover:not(:disabled)::after { opacity: 1; }
+    .btn-scan:hover:not(:disabled) {
+      border-color: #3b9eff;
+      color: #a8d4ff;
+      box-shadow: 0 0 24px #3b9eff28;
+    }
+    .btn-scan:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+
+    /* Spinner */
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .spinner {
+      width: 18px; height: 18px;
+      border: 2px solid #1e2030;
+      border-top-color: #3b9eff;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      flex-shrink: 0;
+    }
+
+    /* Shimmer pulse for scanning state */
+    @keyframes shimmer {
+      0%   { background-position: -200% 0; }
+      100% { background-position:  200% 0; }
+    }
+    .shimmer-bar {
+      background: linear-gradient(90deg, #1e2030 25%, #2a3060 50%, #1e2030 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.4s infinite linear;
+      border-radius: 2px;
+    }
+
+    /* Card reveal animation */
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(14px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .card-reveal {
+      animation: fadeUp 0.35s ease forwards;
+    }
+
+    /* Evidence table */
+    .evidence-row:nth-child(even) { background: rgba(255,255,255,0.018); }
+    .evidence-row:hover           { background: rgba(255,255,255,0.035); }
+
+    /* Collapsible card body */
+    .card-body {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.32s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .card-body.open { max-height: 1200px; }
+    .chevron { transition: transform 0.25s ease; }
+    .chevron.open { transform: rotate(180deg); }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 5px; height: 5px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #2a2d42; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: #3a3f5e; }
+
+    /* SHA fingerprint truncation */
+    .fingerprint { letter-spacing: 0.04em; }
+
+    /* Section divider */
+    .section-divider {
+      border: none;
+      border-top: 1px solid #1e2030;
+    }
+
+    /* Glow on critical count */
+    .crit-glow { text-shadow: 0 0 18px #ff3b5c88; }
+
+    /* ── Export buttons ─────────────────────────────────────────────────────── */
+    .btn-export {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-family: 'Syne', sans-serif;
+      font-weight: 600;
+      font-size: 11px;
+      padding: 5px 12px;
+      border-radius: 7px;
+      border: 1px solid #2a2d42;
+      background: transparent;
+      color: #6b7280;
+      cursor: pointer;
+      transition: color 0.15s, border-color 0.15s, background 0.15s, box-shadow 0.15s;
+      white-space: nowrap;
+      text-decoration: none;
+      position: relative;
+      overflow: hidden;
+    }
+    .btn-export:hover:not(:disabled) {
+      color: #c9d1f0;
+      border-color: #4a4f6e;
+      background: #13141f;
+    }
+    .btn-export:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    /* JSON variant — green tint on hover */
+    .btn-export-json:hover:not(:disabled) {
+      color: #22d67a;
+      border-color: #0a5c2e;
+      background: #051a0e;
+      box-shadow: 0 0 12px #22d67a18;
+    }
+    /* PDF variant — blue tint on hover */
+    .btn-export-pdf:hover:not(:disabled) {
+      color: #7ab3ff;
+      border-color: #1e3a7a;
+      background: #050f1a;
+      box-shadow: 0 0 12px #3b9eff18;
+    }
+    /* Loading shimmer for PDF button */
+    .btn-export-pdf.loading {
+      color: #4a6a9a;
+      border-color: #1e3a7a;
+      background: #060c18;
+      pointer-events: none;
+    }
+    .btn-export-pdf.loading .btn-label { opacity: 0.6; }
+
+    /* Floating trigger button */
+    #ai-fab {
+      position: fixed;
+      bottom: 28px;
+      right: 28px;
+      z-index: 50;
+      width: 52px;
+      height: 52px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #1b3b7a, #0f2455);
+      border: 1px solid #2a4a9a;
+      box-shadow: 0 0 0 0 #3b9eff44;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: box-shadow 0.2s, transform 0.2s, border-color 0.2s;
+    }
+    #ai-fab:hover {
+      border-color: #3b9eff;
+      box-shadow: 0 0 28px #3b9eff44;
+      transform: scale(1.07);
+    }
+    #ai-fab.hidden { display: none; }
+
+    /* Unread pulse ring */
+    @keyframes fabPulse {
+      0%   { box-shadow: 0 0 0 0   #3b9eff55; }
+      70%  { box-shadow: 0 0 0 10px #3b9eff00; }
+      100% { box-shadow: 0 0 0 0   #3b9eff00; }
+    }
+    #ai-fab.pulse { animation: fabPulse 1.8s ease-out 3; }
+
+    /* Chat panel — slides in from the right */
+    #chat-panel {
+      position: fixed;
+      top: 0;
+      right: 0;
+      bottom: 0;
+      width: 420px;
+      max-width: 100vw;
+      z-index: 60;
+      display: flex;
+      flex-direction: column;
+      background: #0e0f17;
+      border-left: 1px solid #1e2030;
+      box-shadow: -12px 0 48px rgba(0,0,0,0.6);
+      transform: translateX(100%);
+      transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    #chat-panel.open { transform: translateX(0); }
+
+    /* Backdrop */
+    #chat-backdrop {
+      position: fixed;
+      inset: 0;
+      z-index: 55;
+      background: rgba(0,0,0,0.45);
+      backdrop-filter: blur(2px);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s;
+    }
+    #chat-backdrop.open { opacity: 1; pointer-events: auto; }
+
+    /* Message bubbles */
+    .msg-user,
+    .msg-ai,
+    .msg-error {
+      max-width: 88%;
+      padding: 10px 14px;
+      border-radius: 12px;
+      font-size: 12.5px;
+      line-height: 1.65;
+      word-break: break-word;
+    }
+    .msg-user {
+      align-self: flex-end;
+      background: #0f1c36;
+      border: 1px solid #1e3a7a;
+      color: #c9d1f0;
+      border-bottom-right-radius: 4px;
+    }
+    .msg-ai {
+      align-self: flex-start;
+      background: #13141f;
+      border: 1px solid #1e2030;
+      color: #c9d1f0;
+      border-bottom-left-radius: 4px;
+    }
+    .msg-error {
+      align-self: flex-start;
+      background: #1a0810;
+      border: 1px solid #5c0e20;
+      color: #ff3b5c;
+    }
+
+    /* Typing indicator */
+    .typing-dots {
+      display: flex;
+      gap: 4px;
+      align-items: center;
+      padding: 10px 14px;
+    }
+    .typing-dot {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: #3b9eff;
+      animation: typingBounce 1.2s ease-in-out infinite;
+    }
+    .typing-dot:nth-child(2) { animation-delay: 0.2s; }
+    .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes typingBounce {
+      0%, 60%, 100% { transform: translateY(0);    opacity: 0.4; }
+      30%            { transform: translateY(-5px); opacity: 1;   }
+    }
+
+    /* Markdown prose inside AI bubbles */
+    .msg-ai p          { margin: 0 0 8px; }
+    .msg-ai p:last-child { margin-bottom: 0; }
+    .msg-ai ul,
+    .msg-ai ol         { margin: 6px 0 8px 18px; }
+    .msg-ai li         { margin-bottom: 3px; }
+    .msg-ai code       { background: #0a0b14; border: 1px solid #1e2030; padding: 1px 5px; border-radius: 4px; font-size: 11px; color: #7ab3ff; font-family: 'JetBrains Mono', monospace; }
+    .msg-ai pre        { background: #0a0b14; border: 1px solid #1e2030; padding: 10px 12px; border-radius: 6px; overflow-x: auto; margin: 8px 0; }
+    .msg-ai pre code   { background: none; border: none; padding: 0; color: #9ba3bf; }
+    .msg-ai strong     { color: #e2e8ff; font-weight: 600; }
+    .msg-ai em         { color: #9ba3bf; }
+    .msg-ai h1, .msg-ai h2, .msg-ai h3 { color: #e2e8ff; font-family: 'Syne', sans-serif; font-weight: 600; margin: 10px 0 5px; }
+    .msg-ai a          { color: #3b9eff; text-decoration: underline; }
+    .msg-ai blockquote { border-left: 2px solid #2a2d42; padding-left: 10px; color: #6b7280; margin: 6px 0; }
+    .msg-ai hr         { border-color: #1e2030; margin: 10px 0; }
+
+    /* Chat input area */
+    #chat-input {
+      flex: 1;
+      background: transparent;
+      border: none;
+      outline: none;
+      color: #c9d1f0;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12.5px;
+      resize: none;
+      line-height: 1.6;
+    }
+    #chat-input::placeholder { color: #4a4f6e; }
+
+    /* Send button */
+    #chat-send {
+      width: 34px; height: 34px;
+      border-radius: 8px;
+      background: linear-gradient(135deg, #1b3b7a, #0f2455);
+      border: 1px solid #2a4a9a;
+      color: #7ab3ff;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      transition: all 0.15s;
+    }
+    #chat-send:hover:not(:disabled) {
+      border-color: #3b9eff;
+      box-shadow: 0 0 14px #3b9eff33;
+    }
+    #chat-send:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    /* Scrollable message list */
+    #chat-messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    /* Suggested prompts */
+    .chat-suggestion {
+      background: #0d0e18;
+      border: 1px solid #1e2030;
+      border-radius: 8px;
+      color: #6b7280;
+      font-size: 11.5px;
+      padding: 7px 12px;
+      cursor: pointer;
+      text-align: left;
+      transition: border-color 0.15s, color 0.15s;
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .chat-suggestion:hover {
+      border-color: #2a4a9a;
+      color: #9ba3bf;
+    }
+  </style>
+</head>
+
+<body class="min-h-screen dot-grid">
+
+  <!-- ═══════════════════════════════════════════════════════
+       HEADER
+  ═══════════════════════════════════════════════════════ -->
+  <header class="relative scanlines border-b border-[#1e2030] bg-[#0a0b14]">
+    <div class="relative z-10 max-w-7xl mx-auto px-6 py-5 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <!-- Logo icon -->
+        <div class="w-8 h-8 rounded-md flex items-center justify-center"
+             style="background: linear-gradient(135deg, #0f2455, #1b3b7a); border: 1px solid #2a4a9a;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#7ab3ff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+            <path d="m9 12 2 2 4-4"/>
+          </svg>
+        </div>
+        <div>
+          <span class="font-display font-800 text-[17px] tracking-tight text-bright">APK<span class="text-[#3b9eff]">·</span>Omen_2</span>
+          <span class="hidden sm:inline text-xs text-dim font-mono ml-2">// static security analysis</span>
+        </div>
+      </div>
+      <div class="flex items-center gap-2 text-xs text-dim font-mono">
+        <span class="w-1.5 h-1.5 rounded-full bg-ok animate-pulse inline-block"></span>
+        <span>API <span class="text-soft"></span></span>
+      </div>
+    </div>
+  </header>
+
+  <!-- ═══════════════════════════════════════════════════════
+       MAIN LAYOUT
+  ═══════════════════════════════════════════════════════ -->
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 py-10 space-y-8">
+
+    <!-- UPLOAD PANEL -->
+    <section id="upload-panel">
+      <div class="upload-zone rounded-xl p-10 text-center cursor-pointer relative"
+           id="drop-zone"
+           onclick="document.getElementById('file-input').click()">
+
+        <!-- Drop icon -->
+        <div class="mb-4 inline-flex items-center justify-center w-14 h-14 rounded-full"
+             style="background: #0d1020; border: 1px solid #2a2d42;">
+          <svg id="upload-icon" width="24" height="24" viewBox="0 0 24 24" fill="none"
+               stroke="#4a4f6e" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+            <polyline points="17 8 12 3 7 8"/>
+            <line x1="12" y1="3" x2="12" y2="15"/>
+          </svg>
+        </div>
+
+        <p id="drop-label" class="text-soft text-sm mb-1">Drop your <code class="text-bright">.apk</code> file here, or click to browse</p>
+        <p class="text-dim text-xs">Maximum 150 MB · Android Package</p>
+
+        <input type="file" id="file-input" accept=".apk" class="hidden" />
+      </div>
+
+      <!-- File status + action row -->
+      <div class="mt-4 flex flex-col sm:flex-row items-start sm:items-center gap-3">
+        <div id="file-status" class="flex-1 flex items-center gap-2 text-xs text-dim px-3 py-2 rounded-lg border border-[#1e2030] bg-[#0e0f17] min-h-[36px]">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/>
+            <polyline points="13 2 13 9 20 9"/>
+          </svg>
+          <span>No file selected</span>
+        </div>
+        <button id="scan-btn" class="btn-scan font-display font-600 text-sm px-6 py-2 rounded-lg flex items-center gap-2 whitespace-nowrap" disabled>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+          </svg>
+          Scan APK
+        </button>
+      </div>
+    </section>
+
+    <!-- LOADING STATE -->
+    <section id="loading-panel" class="hidden">
+      <div class="rounded-xl border border-[#1e2030] bg-[#0e0f17] p-8 text-center space-y-5">
+        <div class="flex justify-center">
+          <div class="spinner" style="width:32px; height:32px; border-width:3px;"></div>
+        </div>
+        <div>
+          <p class="text-bright text-sm font-display font-600 mb-1" id="loading-stage">Decompiling APK…</p>
+          <p class="text-dim text-xs">Running static analysis pipeline</p>
+        </div>
+        <!-- Shimmer progress bars -->
+        <div class="space-y-2 max-w-xs mx-auto">
+          <div class="shimmer-bar h-1.5 w-full"></div>
+          <div class="shimmer-bar h-1.5 w-4/5 mx-auto"></div>
+          <div class="shimmer-bar h-1.5 w-3/5 mx-auto"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ERROR STATE -->
+    <section id="error-panel" class="hidden">
+      <div class="rounded-xl border border-crit-border bg-crit-bg p-6 flex gap-4 items-start">
+        <div class="mt-0.5 flex-shrink-0">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ff3b5c" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/>
+            <line x1="12" y1="16" x2="12.01" y2="16"/>
+          </svg>
+        </div>
+        <div>
+          <p class="text-crit font-display font-600 text-sm mb-1">Analysis Failed</p>
+          <p id="error-msg" class="text-soft text-xs leading-relaxed"></p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════
+         RESULTS PANEL (hidden until data arrives)
+    ═══════════════════════════════════════════════════ -->
+    <section id="results-panel" class="hidden space-y-6">
+
+      <!-- APP PROFILE HEADER ─────────────────────────────── -->
+      <div id="app-profile" class="rounded-xl border border-[#1e2030] bg-[#0e0f17] overflow-hidden">
+        <!-- Accent bar -->
+        <div class="h-[3px]" style="background: linear-gradient(90deg, #3b9eff, #7b5fff, #22d67a);"></div>
+        <div class="px-6 py-5 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <!-- Package -->
+          <div>
+            <p class="text-dim text-[10px] uppercase tracking-widest font-display mb-1">Package</p>
+            <p id="pkg-name" class="text-bright text-sm font-mono break-all"></p>
+          </div>
+          <!-- Signing cert CN -->
+          <div>
+            <p class="text-dim text-[10px] uppercase tracking-widest font-display mb-1">Certificate CN</p>
+            <div class="flex items-center gap-2">
+              <p id="cert-cn" class="text-bright text-sm font-mono"></p>
+              <span id="debug-badge" class="hidden text-[9px] font-display font-600 uppercase px-2 py-0.5 rounded badge-crit">Debug</span>
+            </div>
+          </div>
+          <!-- SDK targets -->
+          <div>
+            <p class="text-dim text-[10px] uppercase tracking-widest font-display mb-1">SDK Target / Min</p>
+            <p class="text-bright text-sm font-mono"><span id="sdk-target"></span> <span class="text-dim">/</span> <span id="sdk-min"></span></p>
+          </div>
+          <!-- SHA-256 fingerprint (full width) -->
+          <div class="md:col-span-2 lg:col-span-3">
+            <p class="text-dim text-[10px] uppercase tracking-widest font-display mb-1">SHA-256 Fingerprint</p>
+            <p id="sha256" class="text-xs text-soft font-mono fingerprint break-all leading-relaxed"></p>
+          </div>
+        </div>
+      </div>
+
+      <!-- SUMMARY BADGES ─────────────────────────────────── -->
+      <div id="summary-row" class="flex flex-wrap gap-3 items-center">
+        <span class="text-dim text-[10px] uppercase tracking-widest font-display mr-1">Findings</span>
+        <!-- Badges injected by JS -->
+      </div>
+
+      <!-- EXPORT BUTTONS ──────────────────────────────────── -->
+      <div id="export-row" class="hidden flex items-center gap-2 flex-wrap">
+        <!-- Divider -->
+        <div class="flex-1 hidden sm:block" style="height:1px; background: linear-gradient(90deg, #1e2030, transparent);"></div>
+        <!-- JSON download -->
+        <button id="btn-json" class="btn-export btn-export-json" title="Download full scan report as JSON">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/>
+          </svg>
+          <span class="btn-label">Download JSON</span>
+        </button>
+        <!-- PDF download -->
+        <button id="btn-pdf" class="btn-export btn-export-pdf" title="Generate and download PDF audit report">
+          <svg id="btn-pdf-icon" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+            <polyline points="14 2 14 8 20 8"/>
+            <line x1="12" y1="18" x2="12" y2="12"/>
+            <line x1="9" y1="15" x2="12" y2="18"/>
+            <line x1="15" y1="15" x2="12" y2="18"/>
+          </svg>
+          <span class="btn-label">Download PDF</span>
+        </button>
+      </div>
+
+      <!-- SEVERITY FILTER TABS ────────────────────────────── -->
+      <div id="filter-bar" class="flex gap-1 flex-wrap">
+        <button class="filter-btn active font-display text-xs px-3 py-1.5 rounded-md" data-filter="ALL">All</button>
+        <button class="filter-btn font-display text-xs px-3 py-1.5 rounded-md" data-filter="CRITICAL">Critical</button>
+        <button class="filter-btn font-display text-xs px-3 py-1.5 rounded-md" data-filter="HIGH">High</button>
+        <button class="filter-btn font-display text-xs px-3 py-1.5 rounded-md" data-filter="MEDIUM">Medium</button>
+        <button class="filter-btn font-display text-xs px-3 py-1.5 rounded-md" data-filter="LOW">Low</button>
+      </div>
+
+      <!-- VULNERABILITY CARDS ────────────────────────────── -->
+      <div id="vuln-list" class="space-y-3"></div>
+
+    </section>
+  </main>
+
+  <!-- ═══════════════════════════════════════════════════════
+       AI CHAT — Backdrop
+  ═══════════════════════════════════════════════════════ -->
+  <div id="chat-backdrop"></div>
+
+  <!-- ═══════════════════════════════════════════════════════
+       AI CHAT — Floating Action Button
+  ═══════════════════════════════════════════════════════ -->
+  <button id="ai-fab" class="hidden" title="Ask AI Security Assistant" aria-label="Open AI assistant">
+    <!-- Spark / AI icon -->
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#7ab3ff" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 2L9.5 9.5 2 12l7.5 2.5L12 22l2.5-7.5L22 12l-7.5-2.5Z"/>
+    </svg>
+  </button>
+
+  <!-- ═══════════════════════════════════════════════════════
+       AI CHAT — Side Panel
+  ═══════════════════════════════════════════════════════ -->
+  <aside id="chat-panel" aria-label="AI Security Assistant">
+
+    <!-- Panel header -->
+    <div class="flex items-center justify-between px-5 py-4 border-b border-[#1e2030] flex-shrink-0"
+         style="background: linear-gradient(135deg, #0a0b14, #0d0e1a);">
+      <div class="flex items-center gap-3">
+        <div class="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0"
+             style="background: linear-gradient(135deg, #0f2455, #1b3b7a); border: 1px solid #2a4a9a;">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#7ab3ff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 2L9.5 9.5 2 12l7.5 2.5L12 22l2.5-7.5L22 12l-7.5-2.5Z"/>
+          </svg>
+        </div>
+        <div>
+          <p class="font-display font-600 text-sm text-bright leading-none">AI Security Assistant Apk_Omen_2</p>
+          <p class="text-[10px] text-dim mt-0.5 font-mono">Powered by Groq · llama3-70b</p>
+        </div>
+      </div>
+      <div class="flex items-center gap-2">
+        <!-- Clear history -->
+        <button id="chat-clear" title="Clear chat history"
+                class="text-dim hover:text-soft transition-colors p-1.5 rounded-md hover:bg-[#1e2030]">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+            <path d="M10 11v6m4-6v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+          </svg>
+        </button>
+        <!-- Close panel -->
+        <button id="chat-close" title="Close"
+                class="text-dim hover:text-soft transition-colors p-1.5 rounded-md hover:bg-[#1e2030]">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- Context banner — shows scanned package name -->
+    <div id="chat-context-bar"
+         class="px-5 py-2.5 border-b border-[#1e2030] flex items-center gap-2 flex-shrink-0"
+         style="background:#09091280;">
+      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#22d67a" stroke-width="2.5">
+        <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/>
+        <polyline points="13 2 13 9 20 9"/>
+      </svg>
+      <span id="chat-context-pkg" class="text-[11px] text-soft font-mono truncate"></span>
+    </div>
+
+    <!-- Message history -->
+    <div id="chat-messages" role="log" aria-live="polite">
+      <!-- Welcome state — shown when history is empty -->
+      <div id="chat-welcome" class="flex flex-col gap-3">
+        <div class="msg-ai">
+          <p class="font-display font-600 text-sm text-bright mb-1">Hey, I've read the report 👋</p>
+          <p>Ask me anything about the scan findings — I'll reference the exact files, line numbers, and vulnerabilities from your results.</p>
+        </div>
+        <!-- Suggested prompts -->
+        <p class="text-[10px] text-dim uppercase tracking-widest font-display px-1 mt-1">Try asking</p>
+        <button class="chat-suggestion" data-prompt="What are the most critical vulnerabilities I should fix first?">
+          What are the most critical vulnerabilities I should fix first?
+        </button>
+        <button class="chat-suggestion" data-prompt="Summarise all hardcoded secrets found and which files they're in.">
+          Summarise all hardcoded secrets and the files they're in.
+        </button>
+        <button class="chat-suggestion" data-prompt="Are there any WebView security issues? How severe are they?">
+          Are there any WebView security issues? How severe?
+        </button>
+        <button class="chat-suggestion" data-prompt="What insecure network calls were detected and what's the risk?">
+          What insecure network calls were detected?
+        </button>
+      </div>
+    </div>
+
+    <!-- Input area -->
+    <div class="flex-shrink-0 border-t border-[#1e2030] px-4 py-3"
+         style="background:#09091280;">
+      <div class="flex items-end gap-2 px-3 py-2.5 rounded-xl border border-[#1e2030] bg-[#0a0b14]"
+           style="min-height:52px;">
+        <textarea id="chat-input"
+                  rows="1"
+                  placeholder="Ask about this scan…"
+                  maxlength="2000"></textarea>
+        <button id="chat-send" disabled title="Send message">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="22" y1="2" x2="11" y2="13"/>
+            <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+          </svg>
+        </button>
+      </div>
+      <p class="text-[10px] text-dim text-center mt-2 font-mono">
+        Grounded in scan report · <span id="chat-char-count">0</span>/2000
+      </p>
+    </div>
+
+  </aside>
+  <template id="vuln-card-tmpl">
+    <article class="vuln-card rounded-xl border border-[#1e2030] bg-[#0e0f17] overflow-hidden card-reveal">
+      <button class="card-header w-full text-left px-5 py-4 flex items-start gap-4 focus:outline-none">
+        <!-- Severity pill -->
+        <span class="sev-badge font-display font-600 text-[10px] uppercase px-2.5 py-1 rounded-full tracking-wider mt-0.5 flex-shrink-0"></span>
+        <!-- Title + category -->
+        <div class="flex-1 min-w-0">
+          <p class="card-title font-display font-600 text-sm text-bright leading-snug"></p>
+          <p class="card-cat text-[11px] text-dim mt-0.5 font-mono"></p>
+        </div>
+        <!-- Evidence count -->
+        <span class="ev-count font-mono text-[10px] text-dim bg-[#13141f] border border-[#2a2d42] px-2 py-0.5 rounded-full flex-shrink-0 self-center"></span>
+        <!-- Chevron -->
+        <svg class="chevron flex-shrink-0 self-center" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#4a4f6e" stroke-width="2">
+          <polyline points="6 9 12 15 18 9"/>
+        </svg>
+      </button>
+      <div class="card-body">
+        <div class="border-t border-[#1a1b28] px-5 pb-5 pt-4 space-y-5">
+
+          <!-- Description -->
+          <div>
+            <p class="text-[10px] uppercase tracking-widest text-dim font-display mb-2">Description</p>
+            <p class="card-desc text-soft text-xs leading-relaxed"></p>
+          </div>
+
+          <hr class="section-divider" />
+
+          <!-- Remediation -->
+          <div>
+            <p class="text-[10px] uppercase tracking-widest text-dim font-display mb-2">Remediation</p>
+            <p class="card-rem text-soft text-xs leading-relaxed"></p>
+          </div>
+
+          <hr class="section-divider" />
+
+          <!-- Evidence -->
+          <div>
+            <p class="text-[10px] uppercase tracking-widest text-dim font-display mb-2">Evidence</p>
+            <div class="rounded-lg overflow-hidden border border-[#1a1b28]">
+              <div class="overflow-x-auto max-h-52 overflow-y-auto">
+                <table class="w-full text-[11px] font-mono">
+                  <thead>
+                    <tr class="text-left border-b border-[#1a1b28]" style="background:#0d0e18;">
+                      <th class="px-3 py-2 text-dim font-500 w-px whitespace-nowrap">#</th>
+                      <th class="px-3 py-2 text-dim font-500">File</th>
+                      <th class="px-3 py-2 text-dim font-500 w-px whitespace-nowrap text-right">Line</th>
+                      <th class="px-3 py-2 text-dim font-500">Match Preview</th>
+                    </tr>
+                  </thead>
+                  <tbody class="evidence-tbody divide-y divide-[#1a1b28]"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </article>
+  </template>
+
+  <!-- ═══════════════════════════════════════════════════════
+       STYLES: filter tab + severity card CSS that needs
+       dynamic class generation (Tailwind can't purge these)
+  ═══════════════════════════════════════════════════════ -->
+  <style>
+    .filter-btn {
+      background: #0e0f17;
+      border: 1px solid #1e2030;
+      color: #4a4f6e;
+      transition: all 0.15s;
+    }
+    .filter-btn:hover { border-color: #2a2d42; color: #9ba3bf; }
+    .filter-btn.active {
+      background: #0f1c36;
+      border-color: #1e3a7a;
+      color: #7ab3ff;
+    }
+  </style>
+
+  <!-- ═══════════════════════════════════════════════════════
+       JAVASCRIPT
+  ═══════════════════════════════════════════════════════ -->
+  <script>
+  (() => {
+    'use strict';
+
+    // ── State ─────────────────────────────────────────────────────────────────
+    const $ = id => document.getElementById(id);
+    const fileInput    = $('file-input');
+    const dropZone     = $('drop-zone');
+    const fileStatus   = $('file-status');
+    const scanBtn      = $('scan-btn');
+    const loadingPanel = $('loading-panel');
+    const loadingStage = $('loading-stage');
+    const errorPanel   = $('error-panel');
+    const errorMsg     = $('error-msg');
+    const resultsPanel = $('results-panel');
+    const vulnList     = $('vuln-list');
+    const summaryRow   = $('summary-row');
+    const filterBar    = $('filter-bar');
+    const cardTemplate = $('vuln-card-tmpl');
+
+    // Export UI refs
+    const exportRow    = $('export-row');
+    const btnJson      = $('btn-json');
+    const btnPdf       = $('btn-pdf');
+    const btnPdfIcon   = $('btn-pdf-icon');
+
+    let selectedFile        = null;
+    let activeFilter        = 'ALL';
+    let allVulns            = [];
+    let currentReportContext = null;   // ← saved after every successful /analyze
+
+
+    // ── Severity config ───────────────────────────────────────────────────────
+    const SEV = {
+      CRITICAL: { label: 'Critical', cardClass: 'card-crit', badgeClass: 'badge-crit', summaryColor: '#ff3b5c' },
+      HIGH:     { label: 'High',     cardClass: 'card-high', badgeClass: 'badge-high', summaryColor: '#ff7b2c' },
+      MEDIUM:   { label: 'Medium',   cardClass: 'card-med',  badgeClass: 'badge-med',  summaryColor: '#f5c542' },
+      LOW:      { label: 'Low',      cardClass: 'card-low',  badgeClass: 'badge-low',  summaryColor: '#3b9eff' },
+      INFO:     { label: 'Info',     cardClass: 'card-info', badgeClass: 'badge-info', summaryColor: '#6b7280' },
+    };
+
+
+    // ── File selection ────────────────────────────────────────────────────────
+    function onFileSelected(file) {
+      if (!file || !file.name.toLowerCase().endsWith('.apk')) {
+        setFileStatus(null);
+        return;
+      }
+      selectedFile = file;
+      setFileStatus(file);
+    }
+
+    function setFileStatus(file) {
+      if (!file) {
+        fileStatus.innerHTML = `
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/>
+            <polyline points="13 2 13 9 20 9"/>
+          </svg>
+          <span>No file selected</span>`;
+        fileStatus.className = 'flex-1 flex items-center gap-2 text-xs text-dim px-3 py-2 rounded-lg border border-[#1e2030] bg-[#0e0f17] min-h-[36px]';
+        dropZone.classList.remove('has-file');
+        scanBtn.disabled = true;
+        return;
+      }
+      const sizeMB = (file.size / 1024 / 1024).toFixed(1);
+      fileStatus.innerHTML = `
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#22d67a" stroke-width="2">
+          <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/>
+          <polyline points="13 2 13 9 20 9"/>
+        </svg>
+        <span class="text-ok">${escHtml(file.name)}</span>
+        <span class="text-dim ml-auto">${sizeMB} MB</span>`;
+      fileStatus.className = 'flex-1 flex items-center gap-2 text-xs px-3 py-2 rounded-lg border border-ok-border bg-ok-bg min-h-[36px]';
+      dropZone.classList.add('has-file');
+      scanBtn.disabled = false;
+    }
+
+    fileInput.addEventListener('change', () => onFileSelected(fileInput.files[0]));
+
+    // Drag & drop
+    ['dragover', 'dragenter'].forEach(evt =>
+      dropZone.addEventListener(evt, e => { e.preventDefault(); dropZone.classList.add('dragover'); }));
+    ['dragleave', 'drop'].forEach(evt =>
+      dropZone.addEventListener(evt, e => { e.preventDefault(); dropZone.classList.remove('dragover'); }));
+    dropZone.addEventListener('drop', e => {
+      onFileSelected(e.dataTransfer.files[0]);
+    });
+
+
+    // ── UI state helpers ──────────────────────────────────────────────────────
+    function showPanel(id) {
+      ['loading-panel', 'error-panel', 'results-panel'].forEach(p => {
+        $(p).classList.toggle('hidden', p !== id);
+      });
+    }
+    function hideResults() {
+      resultsPanel.classList.add('hidden');
+    }
+
+    const STAGES = [
+      'Extracting signing certificate…',
+      'Decompiling APK with apktool…',
+      'Parsing AndroidManifest.xml…',
+      'Scanning for hardcoded secrets…',
+      'Analysing insecure code patterns…',
+      'Hunting endpoints…',
+      'Mapping vulnerabilities…',
+    ];
+    let stageTimer;
+    function startLoadingStages() {
+      let i = 0;
+      loadingStage.textContent = STAGES[i];
+      stageTimer = setInterval(() => {
+        i = (i + 1) % STAGES.length;
+        loadingStage.textContent = STAGES[i];
+      }, 1800);
+    }
+    function stopLoadingStages() { clearInterval(stageTimer); }
+
+
+    // ── Core API call ─────────────────────────────────────────────────────────
+    scanBtn.addEventListener('click', async () => {
+      if (!selectedFile) return;
+
+      // Lock UI
+      scanBtn.disabled = true;
+      scanBtn.innerHTML = `<div class="spinner"></div><span>Scanning…</span>`;
+      showPanel('loading-panel');
+      startLoadingStages();
+      vulnList.innerHTML = '';
+
+      const formData = new FormData();
+      formData.append('file', selectedFile);
+
+      try {
+        const res = await fetch('http://localhost:8000/analyze', {
+          method: 'POST',
+          body: formData,
+        });
+
+        stopLoadingStages();
+
+        if (!res.ok) {
+          let detail = `HTTP ${res.status}`;
+          try { const j = await res.json(); detail = j.detail || detail; } catch {}
+          throw new Error(detail);
+        }
+
+        const data = await res.json();
+        renderReport(data);
+        showPanel('results-panel');
+
+      } catch (err) {
+        stopLoadingStages();
+        errorMsg.textContent = err.message || 'An unexpected error occurred.';
+        showPanel('error-panel');
+      } finally {
+        scanBtn.disabled = false;
+        scanBtn.innerHTML = `
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+          </svg>
+          Scan APK`;
+      }
+    });
+
+
+    // ── Report rendering ──────────────────────────────────────────────────────
+
+    /** Escape HTML to prevent XSS from untrusted API data */
+    function escHtml(str) {
+      return String(str ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    function renderReport(data) {
+      currentReportContext = data;          // persist full report for /chat
+      renderAppProfile(data.app_profile || {}, data.summary || {});
+      renderSummaryBadges(data.summary || {});
+      allVulns = data.vulnerabilities || [];
+      activeFilter = 'ALL';
+      setActiveFilterBtn('ALL');
+      renderVulnList(allVulns);
+      showAiFab(data);                      // reveal FAB now that context exists
+      exportRow.classList.remove('hidden'); // reveal export buttons
+    }
+
+    // App profile header
+    function renderAppProfile(profile, summary) {
+      const sig = profile.signature_info || {};
+
+      $('pkg-name').textContent   = profile.package_name || '—';
+      $('sdk-target').textContent = profile.target_sdk   || '—';
+      $('sdk-min').textContent    = profile.min_sdk      || '—';
+      $('cert-cn').textContent    = sig.subject_cn       || '—';
+      $('sha256').textContent     = sig.sha256_fingerprint || '—';
+
+      const debugBadge = $('debug-badge');
+      if (sig.is_debug_cert) {
+        debugBadge.classList.remove('hidden');
+      } else {
+        debugBadge.classList.add('hidden');
+      }
+    }
+
+    // Summary pills
+    function renderSummaryBadges(summary) {
+      const bySev = summary.by_severity || {};
+      const total = summary.total_vulnerabilities || 0;
+      const order = ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW', 'INFO'];
+
+      // Keep the "Findings" label, replace rest
+      const keepLabel = summaryRow.firstElementChild;
+      summaryRow.innerHTML = '';
+      summaryRow.appendChild(keepLabel);
+
+      // Total badge
+      const totalBadge = document.createElement('span');
+      totalBadge.className = 'font-display font-600 text-xs px-3 py-1 rounded-full border';
+      totalBadge.style.cssText = 'background:#0f1017; border-color:#2a2d42; color:#9ba3bf;';
+      totalBadge.innerHTML = `<span class="text-bright">${total}</span> total`;
+      summaryRow.appendChild(totalBadge);
+
+      order.forEach(sev => {
+        const count = bySev[sev] ?? 0;
+        if (count === 0) return;
+        const cfg = SEV[sev] || SEV.INFO;
+        const badge = document.createElement('span');
+        badge.className = `${cfg.badgeClass} font-display font-600 text-xs px-3 py-1 rounded-full`;
+        badge.textContent = `${cfg.label}: ${count}`;
+        if (sev === 'CRITICAL') badge.classList.add('crit-glow');
+        summaryRow.appendChild(badge);
+      });
+    }
+
+
+    // ── Export logic ──────────────────────────────────────────────────────────
+
+    /**
+     * Derive a safe base filename from the scanned package name.
+     * Falls back to "apk_scan" if the package field is absent.
+     */
+    function _exportBaseName() {
+      const pkg = (currentReportContext?.app_profile?.package_name || 'apk_scan')
+        .replace(/[^a-zA-Z0-9._-]/g, '_')
+        .slice(0, 60);
+      return pkg;
+    }
+
+    /**
+     * Trigger a browser download from an object URL.
+     * Revokes the URL after a short delay to free memory.
+     */
+    function _triggerDownload(url, filename) {
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 10_000);
+    }
+
+    /** Download the current report as a formatted JSON file. */
+    function downloadJson() {
+      if (!currentReportContext) return;
+      try {
+        const json    = JSON.stringify(currentReportContext, null, 2);
+        const blob    = new Blob([json], { type: 'application/json' });
+        const url     = URL.createObjectURL(blob);
+        const fname   = `apk_scan_report_${_exportBaseName()}.json`;
+        _triggerDownload(url, fname);
+      } catch (err) {
+        console.error('JSON export failed:', err);
+      }
+    }
+
+    /** Fetch the PDF from the backend and trigger a browser download. */
+    async function downloadPdf() {
+      if (!currentReportContext) return;
+
+      // Loading state
+      btnPdf.classList.add('loading');
+      btnPdf.disabled = true;
+      btnPdf.querySelector('.btn-label').textContent = 'Generating…';
+      btnPdfIcon.innerHTML = `
+        <circle cx="12" cy="12" r="9" stroke="#3b9eff" stroke-width="2.5"
+          stroke-dasharray="30 30" stroke-linecap="round"
+          style="transform-origin:center; animation:spin 0.8s linear infinite"/>`;
+
+      try {
+        const res = await fetch('http://localhost:8000/export/pdf', {
+          method:  'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body:    JSON.stringify(currentReportContext),
+        });
+
+        if (!res.ok) {
+          let detail = `HTTP ${res.status}`;
+          try { const j = await res.json(); detail = j.detail || detail; } catch {}
+          throw new Error(detail);
+        }
+
+        const blob  = await res.blob();
+        const url   = URL.createObjectURL(blob);
+        const fname = `security_report_${_exportBaseName()}.pdf`;
+        _triggerDownload(url, fname);
+
+      } catch (err) {
+        // Surface the error inline below the export row so the user doesn't
+        // have to hunt for what went wrong.
+        const errEl = document.createElement('p');
+        errEl.className = 'text-crit text-[11px] font-mono w-full mt-1';
+        errEl.textContent = `PDF export failed: ${err.message || 'unexpected error'}`;
+        // Remove any previous error, then insert
+        exportRow.querySelector('.export-err')?.remove();
+        errEl.classList.add('export-err');
+        exportRow.parentNode.insertBefore(errEl, exportRow.nextSibling);
+        // Auto-dismiss after 6 s
+        setTimeout(() => errEl.remove(), 6_000);
+        console.error('PDF export error:', err);
+
+      } finally {
+        // Restore button state
+        btnPdf.classList.remove('loading');
+        btnPdf.disabled = false;
+        btnPdf.querySelector('.btn-label').textContent = 'Download PDF';
+        btnPdfIcon.innerHTML = `
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+          <polyline points="14 2 14 8 20 8"/>
+          <line x1="12" y1="18" x2="12" y2="12"/>
+          <line x1="9" y1="15" x2="12" y2="18"/>
+          <line x1="15" y1="15" x2="12" y2="18"/>`;
+      }
+    }
+
+    // Wire up export button clicks
+    btnJson.addEventListener('click', downloadJson);
+    btnPdf.addEventListener('click',  downloadPdf);
+    filterBar.addEventListener('click', e => {
+      const btn = e.target.closest('.filter-btn');
+      if (!btn) return;
+      activeFilter = btn.dataset.filter;
+      setActiveFilterBtn(activeFilter);
+      const filtered = activeFilter === 'ALL'
+        ? allVulns
+        : allVulns.filter(v => v.severity === activeFilter);
+      renderVulnList(filtered);
+    });
+
+    function setActiveFilterBtn(filter) {
+      filterBar.querySelectorAll('.filter-btn').forEach(b => {
+        b.classList.toggle('active', b.dataset.filter === filter);
+      });
+    }
+
+    // Vulnerability list
+    function renderVulnList(vulns) {
+      vulnList.innerHTML = '';
+
+      if (vulns.length === 0) {
+        vulnList.innerHTML = `
+          <div class="text-center py-14 text-dim text-sm font-mono">
+            No findings match the current filter.
+          </div>`;
+        return;
+      }
+
+      vulns.forEach((vuln, idx) => {
+        const card = buildVulnCard(vuln, idx);
+        vulnList.appendChild(card);
+      });
+    }
+
+    // Single vulnerability card
+    function buildVulnCard(vuln, idx) {
+      const clone = cardTemplate.content.cloneNode(true);
+      const article = clone.querySelector('article');
+
+      // Stagger reveal
+      article.style.animationDelay = `${idx * 45}ms`;
+      article.style.opacity = '0';
+
+      const sev    = vuln.severity || 'INFO';
+      const cfg    = SEV[sev] || SEV.INFO;
+
+      // Card border colour
+      article.classList.add(cfg.cardClass);
+
+      // Severity badge
+      const sevBadge = clone.querySelector('.sev-badge');
+      sevBadge.textContent = cfg.label;
+      sevBadge.classList.add(cfg.badgeClass);
+
+      // Title / category / description / remediation
+      clone.querySelector('.card-title').textContent = vuln.title    || '—';
+      clone.querySelector('.card-cat').textContent   = vuln.category || '—';
+      clone.querySelector('.card-desc').textContent  = vuln.description  || '—';
+      clone.querySelector('.card-rem').textContent   = vuln.remediation  || '—';
+
+      // Evidence count
+      const evCount = vuln.evidence?.length ?? 0;
+      clone.querySelector('.ev-count').textContent = `${evCount} evidence item${evCount !== 1 ? 's' : ''}`;
+
+      // Evidence table rows
+      const tbody = clone.querySelector('.evidence-tbody');
+      (vuln.evidence || []).forEach((ev, i) => {
+        const tr = document.createElement('tr');
+        tr.className = 'evidence-row transition-colors';
+        const lineNo = ev.line_number > 0 ? ev.line_number : '—';
+        // Truncate file path to last 2 segments for readability
+        const fileParts = (ev.file || '').split(/[\\/]/);
+        const shortFile = fileParts.length > 2
+          ? '…/' + fileParts.slice(-2).join('/')
+          : (ev.file || '—');
+        tr.innerHTML = `
+          <td class="px-3 py-2 text-dim select-none">${i + 1}</td>
+          <td class="px-3 py-2 text-soft" title="${escHtml(ev.file)}">${escHtml(shortFile)}</td>
+          <td class="px-3 py-2 text-right whitespace-nowrap" style="color:${cfg.summaryColor}">${escHtml(String(lineNo))}</td>
+          <td class="px-3 py-2 text-soft max-w-[280px] truncate" title="${escHtml(ev.match_preview)}">${escHtml(ev.match_preview || '—')}</td>`;
+        tbody.appendChild(tr);
+      });
+
+      // Toggle expand/collapse
+      const header   = clone.querySelector('.card-header');
+      const body     = clone.querySelector('.card-body');
+      const chevron  = clone.querySelector('.chevron');
+
+      header.addEventListener('click', () => {
+        const isOpen = body.classList.toggle('open');
+        chevron.classList.toggle('open', isOpen);
+      });
+
+      // Auto-open CRITICAL cards
+      if (sev === 'CRITICAL') {
+        body.classList.add('open');
+        chevron.classList.add('open');
+      }
+
+      return clone;
+    }
+
+
+    // ── Initial state ─────────────────────────────────────────────────────────
+    // Ensure results / error panels start hidden
+    ['loading-panel', 'error-panel', 'results-panel'].forEach(id => $(id).classList.add('hidden'));
+
+
+    // ════════════════════════════════════════════════════════════════════════
+    // AI CHAT MODULE
+    // ════════════════════════════════════════════════════════════════════════
+
+    // ── Chat DOM refs ─────────────────────────────────────────────────────────
+    const aiFab          = $('ai-fab');
+    const chatPanel      = $('chat-panel');
+    const chatBackdrop   = $('chat-backdrop');
+    const chatMessages   = $('chat-messages');
+    const chatWelcome    = $('chat-welcome');
+    const chatInput      = $('chat-input');
+    const chatSend       = $('chat-send');
+    const chatClose      = $('chat-close');
+    const chatClear      = $('chat-clear');
+    const chatContextPkg = $('chat-context-pkg');
+    const chatCharCount  = $('chat-char-count');
+
+    let chatOpen    = false;
+    let chatBusy    = false;          // true while awaiting Groq response
+    let chatHistory = [];             // [{role, content}] for visual history only
+
+    // ── marked.js configuration ──────────────────────────────────────────────
+    // Sanitise rendered HTML — DOMPurify not needed here as marked output is
+    // already reasonably safe, but we set breaks:true for UX.
+    if (window.marked) {
+      marked.setOptions({ breaks: true, gfm: true });
+    }
+
+    // ── Show / hide the FAB ───────────────────────────────────────────────────
+    function showAiFab(reportData) {
+      const pkg = reportData?.app_profile?.package_name || '';
+      chatContextPkg.textContent = pkg || 'APK scan loaded';
+      aiFab.classList.remove('hidden');
+      // Brief pulse to draw attention after scan completes
+      aiFab.classList.add('pulse');
+      aiFab.addEventListener('animationend', () => aiFab.classList.remove('pulse'), { once: true });
+    }
+
+    // ── Open / close panel ────────────────────────────────────────────────────
+    function openChat() {
+      chatPanel.classList.add('open');
+      chatBackdrop.classList.add('open');
+      chatOpen = true;
+      // Focus input after transition finishes
+      setTimeout(() => chatInput.focus(), 320);
+    }
+
+    function closeChat() {
+      chatPanel.classList.remove('open');
+      chatBackdrop.classList.remove('open');
+      chatOpen = false;
+    }
+
+    aiFab.addEventListener('click', openChat);
+    chatClose.addEventListener('click', closeChat);
+    chatBackdrop.addEventListener('click', closeChat);
+
+    // Close on Escape
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Escape' && chatOpen) closeChat();
+    });
+
+    // ── Clear history ─────────────────────────────────────────────────────────
+    chatClear.addEventListener('click', () => {
+      chatHistory = [];
+      // Remove all messages except the welcome block
+      Array.from(chatMessages.children).forEach(child => {
+        if (child.id !== 'chat-welcome') child.remove();
+      });
+      chatWelcome.style.display = '';
+    });
+
+    // ── Textarea auto-grow + send-button enable ───────────────────────────────
+    chatInput.addEventListener('input', () => {
+      // Reset height then grow to scrollHeight (max ~120 px ≈ 6 lines)
+      chatInput.style.height = 'auto';
+      chatInput.style.height = Math.min(chatInput.scrollHeight, 120) + 'px';
+
+      const len = chatInput.value.length;
+      chatCharCount.textContent = len;
+      chatSend.disabled = (len === 0 || chatBusy);
+    });
+
+    // Send on Enter (Shift+Enter inserts newline)
+    chatInput.addEventListener('keydown', e => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        if (!chatSend.disabled) submitChat();
+      }
+    });
+
+    chatSend.addEventListener('click', submitChat);
+
+    // Suggested prompt clicks
+    chatMessages.addEventListener('click', e => {
+      const btn = e.target.closest('.chat-suggestion');
+      if (!btn) return;
+      chatInput.value = btn.dataset.prompt;
+      chatInput.dispatchEvent(new Event('input'));
+      chatInput.focus();
+    });
+
+    // ── Message rendering helpers ─────────────────────────────────────────────
+
+    /** Append a bubble to the message list and scroll into view. */
+    function appendMessage(role, htmlContent) {
+      // Hide welcome block once real messages exist
+      if (chatHistory.length === 0 && role === 'user') {
+        chatWelcome.style.display = 'none';
+      }
+
+      const div = document.createElement('div');
+      div.className = role === 'user'
+        ? 'msg-user'
+        : role === 'error'
+          ? 'msg-error'
+          : 'msg-ai';
+
+      div.innerHTML = htmlContent;
+      chatMessages.appendChild(div);
+      chatMessages.scrollTop = chatMessages.scrollHeight;
+      return div;
+    }
+
+    /** Show the animated typing indicator. Returns the element so it can be removed. */
+    function showTyping() {
+      const el = document.createElement('div');
+      el.className = 'typing-dots';
+      el.id = 'chat-typing';
+      el.innerHTML = `
+        <div class="typing-dot"></div>
+        <div class="typing-dot"></div>
+        <div class="typing-dot"></div>`;
+      chatMessages.appendChild(el);
+      chatMessages.scrollTop = chatMessages.scrollHeight;
+      return el;
+    }
+
+    function removeTyping() {
+      $('chat-typing')?.remove();
+    }
+
+    /** Lock/unlock input while waiting for Groq. */
+    function setChatBusy(busy) {
+      chatBusy = busy;
+      chatInput.disabled = busy;
+      chatSend.disabled  = busy;
+    }
+
+    // ── Core chat submission ──────────────────────────────────────────────────
+    async function submitChat() {
+      const question = chatInput.value.trim();
+      if (!question || chatBusy || !currentReportContext) return;
+
+      // Clear and reset input
+      chatInput.value = '';
+      chatInput.style.height = 'auto';
+      chatCharCount.textContent = '0';
+
+      // Render user bubble (plain text, escaped for XSS safety)
+      appendMessage('user', escHtml(question));
+      chatHistory.push({ role: 'user', content: question });
+
+      setChatBusy(true);
+      const typingEl = showTyping();
+
+      try {
+        const res = await fetch('http://localhost:8000/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            question,
+            report_context: currentReportContext,
+          }),
+        });
+
+        removeTyping();
+
+        // Surface HTTP error messages from the backend
+        if (!res.ok) {
+          let detail = `Request failed (HTTP ${res.status})`;
+          if (res.status === 429) detail = 'Rate limit reached — please wait a moment and try again.';
+          else if (res.status === 503) detail = 'AI assistant is temporarily unavailable. Please retry.';
+          else {
+            try { const j = await res.json(); detail = j.detail || detail; } catch {}
+          }
+          throw new Error(detail);
+        }
+
+        const data = await res.json();
+        const rawAnswer = data.answer || '_(No response received)_';
+
+        // Parse markdown → HTML; fall back to escaped plain text if marked unavailable
+        const parsedHtml = window.marked
+          ? marked.parse(rawAnswer)
+          : escHtml(rawAnswer).replace(/\n/g, '<br>');
+
+        appendMessage('ai', parsedHtml);
+        chatHistory.push({ role: 'assistant', content: rawAnswer });
+
+      } catch (err) {
+        removeTyping();
+        appendMessage('error',
+          `<svg style="display:inline;vertical-align:-2px;margin-right:5px" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>` +
+          escHtml(err.message || 'An unexpected error occurred.')
+        );
+      } finally {
+        setChatBusy(false);
+        chatInput.focus();
+      }
+    }
+
+  })();
+  </script>
+
+</body>
+</html>
